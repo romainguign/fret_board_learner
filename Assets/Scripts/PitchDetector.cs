@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[ExecuteInEditMode]
 public class PitchDetector : MonoBehaviour
 {
     private AudioClip micClip;
@@ -22,8 +23,17 @@ public class PitchDetector : MonoBehaviour
     private int framesSinceChange = 0;
     private float minNoteEnergy = 0.0001f; // Seuil très bas pour détecter même les notes faibles
 
+    // objet TextMesh pour afficher la note à l'écran (peut être bougé en édition)
+    private TextMesh displayText;
+
     void Start()
     {
+        // préparer l'affichage dès l'édition
+        EnsureDisplayExists();
+
+        if (!Application.isPlaying)
+            return;
+
         if (Microphone.devices.Length == 0)
         {
             Debug.LogError("Aucun micro détecté !");
@@ -49,6 +59,13 @@ public class PitchDetector : MonoBehaviour
 
     void Update()
     {
+        // en édition on ne fait que préparer l'affichage
+        if (!Application.isPlaying)
+        {
+            EnsureDisplayExists();
+            return;
+        }
+
         if (micClip == null)
             return;
 
@@ -60,6 +77,7 @@ public class PitchDetector : MonoBehaviour
             
             // Détecter la fréquence avec YIN amélioré
             DetectPitchYIN(audioBuffer);
+            UpdateDisplay();
         }
     }
 
@@ -113,7 +131,22 @@ public class PitchDetector : MonoBehaviour
             detectedFrequency = smoothedFrequency;
             confidence = Mathf.Clamp01(1f - yinBuffer[bestLag]);
             
-            string newNote = FrequencyToNote(detectedFrequency);
+            // Vérifier les erreurs d'octave : le détecteur peut parfois renvoyer une fréquence
+            // deux fois trop basse (une octave en dessous). On ne corrige **que** si la fréquence
+            // est vraiment faible, afin de ne pas transformer un E2 en E3.
+            detectedNote = FrequencyToNote(detectedFrequency);
+            int octave = ExtractOctave(detectedNote);
+            // Si la fréquence est inférieure à ~60 Hz, on suppose un bug d'octave et on la multiplie
+            // par 2 jusqu'à ce qu'elle soit dans une plage raisonnable.
+            while (detectedFrequency < 60f && detectedFrequency * 2f < 2000f)
+            {
+                detectedFrequency *= 2f;
+                detectedNote = FrequencyToNote(detectedFrequency);
+                octave = ExtractOctave(detectedNote);
+                Debug.Log($"Octave correction appliquée, nouvelle fréquence = {detectedFrequency:F1} Hz ({detectedNote})");
+            }
+            
+            string newNote = detectedNote;
             
             // Validation : attendre 1 frame pour confirmer (réactivité meilleure)
             if (newNote != lastNote)
@@ -308,20 +341,53 @@ public class PitchDetector : MonoBehaviour
         return notes[noteIndex] + octave;
     }
 
-    void OnGUI()
+    private int ExtractOctave(string note)
     {
-        GUIStyle largeStyle = new GUIStyle(GUI.skin.label);
-        largeStyle.fontSize = 40;
-        largeStyle.fontStyle = FontStyle.Bold;
-        // Couleur : vert si confiance > 0.7, rouge sinon
-        largeStyle.normal.textColor = confidence > 0.7f ? Color.green : Color.red;
-        
-        GUIStyle smallStyle = new GUIStyle(GUI.skin.label);
-        smallStyle.fontSize = 20;
-        smallStyle.normal.textColor = Color.white;
-
-        GUI.Label(new Rect(20, 20, 400, 60), $"Note: {detectedNote}", largeStyle);
-        GUI.Label(new Rect(20, 90, 400, 40), $"Fréquence: {detectedFrequency:F1} Hz", smallStyle);
-        GUI.Label(new Rect(20, 140, 400, 40), $"Confiance: {confidence:F2}", smallStyle);
+        if (string.IsNullOrEmpty(note))
+            return 0;
+        // dernier caractère de la chaîne est l'octave
+        char c = note[note.Length - 1];
+        if (char.IsDigit(c))
+            return c - '0';
+        return 0;
     }
+
+    // -----------------------------------
+    // Display helpers
+    // -----------------------------------
+    private void EnsureDisplayExists()
+    {
+        if (displayText != null)
+            return;
+
+        // chercher un enfant existant
+        Transform existing = transform.Find("PitchDisplay");
+        if (existing != null)
+        {
+            displayText = existing.GetComponent<TextMesh>();
+        }
+        else
+        {
+            GameObject go = new GameObject("PitchDisplay");
+            go.transform.SetParent(transform);
+            go.transform.localPosition = Vector3.zero;
+            displayText = go.AddComponent<TextMesh>();
+            displayText.fontSize = 48;
+            displayText.anchor = TextAnchor.MiddleCenter;
+            displayText.alignment = TextAlignment.Center;
+            displayText.color = Color.green;
+            displayText.text = "Aucune\n0Hz"; // placeholder
+        }
+    }
+
+    private void UpdateDisplay()
+    {
+        if (displayText == null)
+            return;
+
+        displayText.text = $"{detectedNote}\n{detectedFrequency:F1}Hz";
+        displayText.color = confidence > 0.7f ? Color.green : Color.red;
+    }
+
+
 }
