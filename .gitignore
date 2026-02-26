@@ -1,0 +1,43 @@
+# =============== UNITY ===============
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+
+# MemoryCaptures
+MemoryCaptures/
+
+# Asset meta data should be visible
+!/[Aa]ssets/**/*.meta
+!/[Pp]rojectSettings/**/*.meta
+
+# Crash reports
+sysinfo.txt
+
+# =============== IDE ===============
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# =============== OS ===============
+.DS_Store
+Thumbs.db
+
+# =============== Git LFS (optionnel) ===============
+# Ajoute ça si tu utilises Git LFS
+# *.psd
+# *.fbx
+# *.wav
+# *.mp4
