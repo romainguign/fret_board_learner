@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [ExecuteInEditMode]
 public class Fretboard2D : MonoBehaviour
@@ -14,6 +15,7 @@ public class Fretboard2D : MonoBehaviour
     // Couleurs
     private Color defaultColor = Color.white;
     private Color detectedColor = Color.yellow;
+    private Color rootNoteColor = new Color(1f, 0.5f, 0f); // Orange pour les notes racines
     private float colorFadeDuration = 0.15f;
     
     // Données
@@ -26,6 +28,12 @@ public class Fretboard2D : MonoBehaviour
     // Mode d'affichage
     [SerializeField]
     public bool ignoreOctave = false;
+    
+    // Gamme
+    private Scale currentScale = null;
+    private string currentRootNote = "C";
+    private bool useScaleFilter = false;
+    private Dictionary<string, Scale> allScales;
     
     // État
     private bool hasBeenCreated = false;
@@ -54,6 +62,7 @@ public class Fretboard2D : MonoBehaviour
         
         InitializeFromChildren();
         pitchDetector = FindFirstObjectByType<PitchDetector>();
+        allScales = ScalesLibrary.GetAllScales();
         
         if (noteNames == null || noteNames.Length == 0)
         {
@@ -133,7 +142,7 @@ public class Fretboard2D : MonoBehaviour
                 noteRenderers[s, f] = sr;
                 noteColors[s, f] = defaultColor;
                 noteFrequencies[s, f] = openFreq[s] * Mathf.Pow(2f, f / 12f);
-                noteNames[s, f] = GetNoteName(s, f);
+                noteNames[s, f] = GetNoteNameEnglish(s, f);
             }
         }
 
@@ -183,7 +192,7 @@ public class Fretboard2D : MonoBehaviour
                 }
 
                 noteFrequencies[s, f] = openFreq[s] * Mathf.Pow(2f, f / 12f);
-                noteNames[s, f] = GetNoteName(s, f);
+                noteNames[s, f] = GetNoteNameEnglish(s, f);
                 idx++;
             }
         }
@@ -318,5 +327,111 @@ public class Fretboard2D : MonoBehaviour
     public void SetIgnoreOctave(bool value)
     {
         ignoreOctave = value;
+    }
+
+    public void SetScale(string scaleName)
+    {
+        if (allScales != null && allScales.ContainsKey(scaleName))
+        {
+            currentScale = allScales[scaleName];
+            UpdateScaleDisplay();
+        }
+        else
+        {
+            Debug.LogWarning($"Gamme '{scaleName}' non trouvée");
+        }
+    }
+
+    public void SetUseScaleFilter(bool use)
+    {
+        useScaleFilter = use;
+        UpdateScaleDisplay();
+    }
+
+    private bool IsNoteInScale(string noteName)
+    {
+        if (currentScale == null || !useScaleFilter)
+            return true;
+
+        // Enlever l'octave de la note
+        string baseNote = StripOctave(noteName);
+        
+        // Mappage des notes anglaises aux intervalles
+        Dictionary<string, int> noteToInterval = new Dictionary<string, int>
+        {
+            { "C", 0 }, { "C#", 1 }, { "Db", 1 },
+            { "D", 2 }, { "D#", 3 }, { "Eb", 3 },
+            { "E", 4 },
+            { "F", 5 }, { "F#", 6 }, { "Gb", 6 },
+            { "G", 7 }, { "G#", 8 }, { "Ab", 8 },
+            { "A", 9 }, { "A#", 10 }, { "Bb", 10 },
+            { "B", 11 }
+        };
+
+        if (!noteToInterval.ContainsKey(baseNote))
+            return true;
+
+        int interval = noteToInterval[baseNote];
+        int rootInterval = noteToInterval[currentRootNote];
+        
+        // Calculer l'intervalle relatif à la note de base de la gamme
+        int relativeInterval = (interval - rootInterval + 12) % 12;
+        
+        return currentScale.intervals.Contains(relativeInterval);
+    }
+
+    private void UpdateScaleDisplay()
+    {
+        if (noteRenderers == null)
+            return;
+
+        for (int s = 0; s < noteRenderers.GetLength(0); s++)
+        {
+            for (int f = 0; f < noteRenderers.GetLength(1); f++)
+            {
+                if (noteRenderers[s, f] == null || noteObjects[s, f] == null)
+                    continue;
+
+                bool shouldShow = IsNoteInScale(noteNames[s, f]);
+                noteObjects[s, f].SetActive(shouldShow);
+                
+                if (shouldShow)
+                {
+                    // Vérifier si c'est une note racine
+                    string baseNote = StripOctave(noteNames[s, f]);
+                    if (baseNote == currentRootNote)
+                    {
+                        noteRenderers[s, f].color = rootNoteColor;
+                    }
+                    else
+                    {
+                        noteRenderers[s, f].color = defaultColor;
+                    }
+                }
+            }
+        }
+    }
+
+    public string[] GetAvailableScales()
+    {
+        if (allScales == null)
+        {
+            allScales = ScalesLibrary.GetAllScales();
+        }
+        
+        string[] scaleNames = new string[allScales.Count];
+        allScales.Keys.CopyTo(scaleNames, 0);
+        return scaleNames;
+    }
+
+    public string[] GetAvailableRootNotes()
+    {
+        return ScalesLibrary.GetAllNotes();
+    }
+
+    public void SetRootNote(string note)
+    {
+        currentRootNote = note;
+        UpdateScaleDisplay();
     }
 }
