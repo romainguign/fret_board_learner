@@ -143,7 +143,6 @@ public class PitchDetector : MonoBehaviour
                 detectedFrequency *= 2f;
                 detectedNote = FrequencyToNote(detectedFrequency);
                 octave = ExtractOctave(detectedNote);
-                Debug.Log($"Octave correction appliquée, nouvelle fréquence = {detectedFrequency:F1} Hz ({detectedNote})");
             }
             
             string newNote = detectedNote;
@@ -163,11 +162,6 @@ public class PitchDetector : MonoBehaviour
             {
                 framesSinceChange = 0;
                 detectedNote = lastNote;
-            }
-            
-            if (Time.frameCount % 15 == 0)
-            {
-                Debug.Log($"Note: {detectedNote} | Fréq: {detectedFrequency:F1} Hz | Confiance: {confidence:F2}");
             }
         }
         else
@@ -375,9 +369,9 @@ public class PitchDetector : MonoBehaviour
             displayText.fontSize = 48;
             displayText.anchor = TextAnchor.MiddleCenter;
             displayText.alignment = TextAlignment.Center;
-            displayText.color = Color.green;
-            displayText.text = "Aucune\n0Hz"; // placeholder
-        }
+            displayText.color = Color.gray;
+            displayText.text = "None : 0Hz"; // placeholder
+        }   
     }
 
     private void UpdateDisplay()
@@ -385,8 +379,8 @@ public class PitchDetector : MonoBehaviour
         if (displayText == null)
             return;
 
-        displayText.text = $"{detectedNote}\n{detectedFrequency:F1}Hz";
-        displayText.color = confidence > 0.7f ? Color.green : Color.red;
+        displayText.text = $"{detectedNote} : {detectedFrequency:F1}Hz";
+        displayText.color = confidence > 0.7f ? Color.green : Color.gray;
     }
 
 

@@ -31,6 +31,6 @@ public class UIManager : MonoBehaviour
     private void OnOctaveToggleChanged(bool isChecked)
     {
         fretboard.SetIgnoreOctave(isChecked);
-        Debug.Log($"Mode ignoreOctave: {(isChecked ? "ON (toutes octaves)" : "OFF (octave exact)")}");
+
     }
 }

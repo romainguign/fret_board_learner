@@ -4,7 +4,7 @@ using UnityEngine;
 public class Fretboard2D : MonoBehaviour
 {
     // Configurations
-    private int numFrets = 17;
+    private int numFrets = 18;
     private string[] strings = { "E4", "B3", "G3", "D3", "A2", "E2" };
     
     private float fretSpacing = 1.2f;
@@ -33,8 +33,6 @@ public class Fretboard2D : MonoBehaviour
 
     void Start()
     {
-        Debug.Log("Fretboard2D.Start() appelé | isPlaying=" + Application.isPlaying);
-        
         // En édition: créer une seule fois
         if (!Application.isPlaying && !hasBeenCreated && transform.Find("Notes") == null)
         {
@@ -48,26 +46,26 @@ public class Fretboard2D : MonoBehaviour
 
         // Chercher ou créer le fretboard
         Transform container = transform.Find("Notes");
-        Debug.Log("Container trouvé: " + (container != null));
         
         if (container == null)
         {
-            Debug.Log("Création du fretboard...");
             CreateFretboard();
         }
         
         InitializeFromChildren();
         pitchDetector = FindFirstObjectByType<PitchDetector>();
-        Debug.Log("PitchDetector trouvé: " + (pitchDetector != null));
+        
+        if (noteNames == null || noteNames.Length == 0)
+        {
+            Debug.LogError("noteNames est NULL ou vide!");
+        }
     }
 
 #if UNITY_EDITOR
     [ContextMenu("Save Fretboard")]
     public void SaveFretboard()
     {
-        Debug.Log("Sauvegarde du fretboard...");
         UnityEditor.SceneManagement.EditorSceneManager.SaveScene(gameObject.scene);
-        Debug.Log("Scène sauvegardée!");
     }
 #endif
 
@@ -123,7 +121,7 @@ public class Fretboard2D : MonoBehaviour
                 textGO.transform.localPosition = Vector3.zero;
                 
                 TextMesh tm = textGO.AddComponent<TextMesh>();
-                tm.text = GetNoteName(s, f);
+                tm.text = GetNoteNameEnglish(s, f);
                 tm.anchor = TextAnchor.MiddleCenter;
                 tm.alignment = TextAlignment.Center;
                 tm.fontSize = 20;
@@ -139,11 +137,6 @@ public class Fretboard2D : MonoBehaviour
             }
         }
 
-        // Appliquer la position et scale de base
-        transform.position = new Vector3(9.14f, -7.59f, 0f);
-        transform.localScale = new Vector3(1.128f, 1.128f, 1.128f);
-
-        Debug.Log($"Fretboard créé: {strings.Length * numFrets} notes");
     }
 
     private void InitializeFromChildren()
@@ -195,7 +188,6 @@ public class Fretboard2D : MonoBehaviour
             }
         }
 
-        Debug.Log($"Fretboard initialisé: {expected} notes");
     }
 
     void Update()
@@ -245,8 +237,8 @@ public class Fretboard2D : MonoBehaviour
 
                     if (ignoreOctave)
                     {
-                        // Comparer que le nom (sans octave)
-                        isMatch = StripOctave(noteNames[s, f]) == detectedBase;
+                        string strippedNoteName = StripOctave(noteNames[s, f]);
+                        isMatch = strippedNoteName == detectedBase;
                     }
                     else
                     {
@@ -264,10 +256,6 @@ public class Fretboard2D : MonoBehaviour
                 }
             }
 
-            if (Time.frameCount % 30 == 0 && matchCount > 0)
-            {
-                Debug.Log($"Détecté: {pitchDetector.detectedNote} ({pitchDetector.detectedFrequency:F1}Hz) => {matchCount} note(s) | Mode: {(ignoreOctave ? "Toutes octaves" : "Octave exact")}");
-            }
         }
     }
 
@@ -294,6 +282,18 @@ public class Fretboard2D : MonoBehaviour
     }
 
     private string GetNoteName(int stringIdx, int fretIdx)
+    {
+        string[] notes = { "Do", "Do#", "Ré", "Ré#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si" };
+        int[] openNotes = { 4, 11, 7, 2, 9, 4 };
+        int[] openOctaves = { 4, 3, 3, 3, 2, 2 };
+
+        int noteIdx = (openNotes[stringIdx] + fretIdx) % 12;
+        int octave = openOctaves[stringIdx] + (openNotes[stringIdx] + fretIdx) / 12;
+
+        return notes[noteIdx] + octave;
+    }
+
+    private string GetNoteNameEnglish(int stringIdx, int fretIdx)
     {
         string[] notes = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
         int[] openNotes = { 4, 11, 7, 2, 9, 4 };
